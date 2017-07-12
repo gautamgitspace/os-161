@@ -41,6 +41,7 @@
 #include <sfs.h>
 #include <syscall.h>
 #include <test.h>
+#include <overwrite.h>
 #include "opt-sfs.h"
 #include "opt-net.h"
 
@@ -724,7 +725,8 @@ menu(char *args)
 	menu_execute(args, 1);
 
 	while (1) {
-		kprintf("OS/161 kernel [? for menu]: ");
+        /* Defined in overwrite.h. To change kernel prompt, edit overwrite.h*/
+        kprintf(KERNEL_PROMPT);
 		kgets(buf, sizeof(buf));
 		menu_execute(buf, 0);
 	}
