@@ -30,7 +30,7 @@
 #include <types.h>
 #include <kern/errmsg.h>
 #include <lib.h>
-
+#include <thread.h>
 /*
  * Like strdup, but calls kmalloc.
  */
@@ -59,4 +59,23 @@ strerror(int errcode)
 	}
 	panic("Invalid error code %d\n", errcode);
 	return NULL;
+}
+
+void
+random_yielder(uint32_t max_yield_count)
+{
+	uint32_t il
+	for (i = 0; i < random() % max_yield_count; i++) {
+		    thread_yield();
+	}
+}
+
+void
+random_spinner(uint32_t max_spin_count)
+{
+	uint32_t i;
+	volatile int spin;
+	for (i = 0; i < random() % max_spin_count; i++) {
+		    spin += i;
+	}
 }
