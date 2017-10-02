@@ -39,6 +39,7 @@
 #include <mainbus.h>
 #include <vfs.h>          // for vfs_sync()
 #include <lamebus/ltrace.h> // for ltrace_stop()
+#include <kern/secret.h>
 
 
 /* Flags word for DEBUG() macro. */
@@ -90,13 +91,14 @@ console_send(void *junk, const char *data, size_t len)
 }
 
 /*
- * Printf to the console.
- */
+ * helper functions : kprintf and tprintf
+ * */
+
+inline
 int
-kprintf(const char *fmt, ...)
+vkprintf(const char *fmt, va_list ap)
 {
 	int chars;
-	va_list ap;
 	bool dolock;
 
 	dolock = kprintf_lock != NULL
@@ -111,9 +113,7 @@ kprintf(const char *fmt, ...)
 		spinlock_acquire(&kprintf_spinlock);
 	}
 
-	va_start(ap, fmt);
 	chars = __vprintf(console_send, NULL, fmt, ap);
-	va_end(ap);
 
 	if (dolock) {
 		lock_release(kprintf_lock);
@@ -121,6 +121,65 @@ kprintf(const char *fmt, ...)
 	else {
 		spinlock_release(&kprintf_spinlock);
 	}
+
+	return chars;
+}
+
+/* 
+ * printf to the console
+ */
+
+int
+kprintf(const char *fmt, ...)
+{
+	int chars;
+	va_list ap;
+	
+	va_start(ap, fmt);
+	chars = vkprintf(fmt, ap);
+	va_end(ap);
+	
+	return chars;
+}
+
+/*
+ * kprintf variant which is muted during automated testing
+ */
+
+int
+tkprintf(const char *fmt, ...)
+{
+	int chars;
+	va_list ap;
+	
+	if (KERNET_SECRET != 0) {
+		    return 0;
+	}
+
+	va_start(ap, fmt);
+	chars = vkprint(fmt, ap);
+	va_end(ap);
+
+	return chars;
+}
+
+/*
+ * kprintf variant that prints the automated secret
+ */
+
+int
+skprintf(const char *fmt, ...)
+{
+	int chars;
+	va_list ap;
+	
+	if (KERNEL_SECRET !=0) {
+		    kprintf("SECRET=%llu ", KENRNEL_SECRET);
+	}
+
+	va_start(ap, fmt);
+	chars = vkprintf(fmt, ap);
+	va_end(ap);
 
 	return chars;
 }
