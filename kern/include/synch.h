@@ -44,9 +44,9 @@
  * internally.
  */
 struct semaphore {
-        char *sem_name;
-	struct wchan *sem_wchan;
-	struct spinlock sem_lock;
+	    char *sem_name;
+	    struct wchan *sem_wchan;
+	    struct spinlock sem_lock;
         volatile unsigned sem_count;
 };
 
@@ -73,9 +73,9 @@ void V(struct semaphore *);
  * (should be) made internally.
  */
 struct lock {
-        char *lk_name;
-        // add what you need here
-        // (don't forget to mark things volatile as needed)
+	char *lk_name;
+	// add what you need here
+	// // (don't forget to mark things volatile as needed)
 };
 
 struct lock *lock_create(const char *name);
