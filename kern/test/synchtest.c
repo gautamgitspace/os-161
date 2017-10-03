@@ -37,7 +37,8 @@
 #include <thread.h>
 #include <synch.h>
 #include <test.h>
-#include <kern/overwrite.h>
+#include <kern/secret.h>
+#include <spinlock.h>
 
 #define SUCCESS 0
 #define FAIL 1
@@ -49,12 +50,16 @@
 static volatile unsigned long testval1;
 static volatile unsigned long testval2;
 static volatile unsigned long testval3;
+static volatile int32_t testval4;
+
 static struct semaphore *testsem;
 static struct lock *testlock;
 static struct cv *testcv;
 static struct semaphore *donesem;
 
-static bool semtest_status;
+struct spinlock status_lock;
+static bool test_status;
+
 static unsigned long semtest_current;
 
 static
@@ -85,6 +90,18 @@ inititems(void)
 			panic("synchtest: sem_create failed\n");
 		}
 	}
+	spinlock_init(&status_lock);
+
+}
+
+staic
+void
+success(bool status, const char *msg) {
+	    if (status == SUCCESS) {
+	    	skprintf("%s: SUCCESS\n", msg);
+		} else {
+			skprintf("%s: FAIL\n", msg);
+		}
 }
 
 static
@@ -100,15 +117,17 @@ semtestthread(void *junk, unsigned long num)
 	random_yielder(4);
 	P(testsem);
 	semtest_current = num;
-	kprintf("Thread %2lu: ", num);
+	tkprintf("Thread %2lu: ", num);
 	for (i=0; i<NSEMLOOPS; i++) {
 		kprintf("%c", (int)num+64);
 		random_yielder(4);
 		if (semtest_current != num) {
-			semtest_status = FAIL;
+			spinlock_acquire(&status_lock);
+			test_status = FAIL;
+			spinlock_release(&status_lock);
 	    }
 	}
-	kprintf("\n");
+	tkprintf("\n");
 	V(donesem);
 }
 
@@ -121,12 +140,12 @@ semtest(int nargs, char **args)
 	(void)args;
 
 	inititems();
-	semtest_status = SUCCESS;
-	kprintf("Starting semaphore test...\n");
-	kprintf("If this hangs, it's broken: ");
+	test_status = SUCCESS;
+	tkprintf("Starting semaphore test...\n");
+	tkprintf("If this hangs, it's broken: ");
 	P(testsem);
 	P(testsem);
-	kprintf("ok\n");
+	tkprintf("ok\n");
 
 	for (i=0; i<NTHREADS; i++) {
 		result = thread_fork("semtest", NULL, semtestthread, NULL, i);
@@ -145,13 +164,9 @@ semtest(int nargs, char **args)
 	V(testsem);
 	V(testsem);
 
-	if (semtest_status == SUCCESS) {
-		kprintf("SUCCESS: %llu\n", KERNEL_SECRET);
-	} else {
-		kprintf("FAIL: %llu\n", KERNEL_SECRET);
-	}
+	tkprintf("Semaphore test done.\n");
+	success(test_status, "semtest");
 
-	kprintf("Semaphore test done.\n");
 	return 0;
 }
 
@@ -159,10 +174,14 @@ static
 void
 fail(unsigned long num, const char *msg)
 {
-	kprintf("thread %lu: Mismatch on %s\n", num, msg);
-	kprintf("Test failed\n");
+	tkprintf("thread %lu: Mismatch on %s\n", num, msg);
+	tkprintf("Test failed\n");
 
 	lock_release(testlock);
+
+	spinlock_acquire(&status_lock);
+	test_status = FAIL;
+	spinlock_release(&status_lock);
 
 	V(donesem);
 	thread_exit();
