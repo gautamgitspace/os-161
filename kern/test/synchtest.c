@@ -194,10 +194,14 @@ locktestthread(void *junk, unsigned long num)
 	int i;
 	(void)junk;
 
+	random_yielder(4);
+
 	for (i=0; i<NLOCKLOOPS; i++) {
+		random_yielder(4);
 		lock_acquire(testlock);
 
-		thread_yield();
+		random_yielder(4);
+
 
 		testval1 = num;
 		testval2 = num*num;
@@ -207,37 +211,42 @@ locktestthread(void *junk, unsigned long num)
 			fail(num, "testval2/testval1");
 		}
 
-		thread_yield();
+		random_yielder(4);
+
 
 		if (testval2%3 != (testval3*testval3)%3) {
 			fail(num, "testval2/testval3");
 		}
 
-		thread_yield();
+		random_yielder(4);
+
 
 		if (testval3 != testval1%3) {
 			fail(num, "testval3/testval1");
 		}
 
-		thread_yield();
+		random_yielder(4);
+
 
 		if (testval1 != num) {
 			fail(num, "testval1/num");
 		}
 
-		thread_yield();
+		random_yielder(4);
+
 
 		if (testval2 != num*num) {
 			fail(num, "testval2/num");
 		}
 
-		thread_yield();
+		random_yielder(4);
+
 
 		if (testval3 != num%3) {
 			fail(num, "testval3/num");
 		}
 
-		thread_yield();
+		random_yielder(4);
 
 		lock_release(testlock);
 	}
@@ -255,20 +264,23 @@ locktest(int nargs, char **args)
 
 	inititems();
 	kprintf("Starting lock test...\n");
+	test_status = SUCCESS;
+	tkprintf("Starting lock test...\n");
+
 
 	for (i=0; i<NTHREADS; i++) {
-		result = thread_fork("synchtest", NULL, locktestthread,
-				     NULL, i);
+		result = thread_fork("synchtest", NULL, locktestthread, NULL, i);
 		if (result) {
-			panic("locktest: thread_fork failed: %s\n",
-			      strerror(result));
+			panic("locktest: thread_fork failed: %s\n", strerror(result));
 		}
 	}
 	for (i=0; i<NTHREADS; i++) {
 		P(donesem);
 	}
 
-	kprintf("Lock test done.\n");
+
+	tkprintf("Lock test done.\n");
+	success(test_status, "locktest");
 
 	return 0;
 }
