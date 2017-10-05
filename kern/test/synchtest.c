@@ -263,7 +263,6 @@ locktest(int nargs, char **args)
 	(void)args;
 
 	inititems();
-	kprintf("Starting lock test...\n");
 	test_status = SUCCESS;
 	tkprintf("Starting lock test...\n");
 
@@ -277,7 +276,6 @@ locktest(int nargs, char **args)
 	for (i=0; i<NTHREADS; i++) {
 		P(donesem);
 	}
-
 
 	tkprintf("Lock test done.\n");
 	success(test_status, "locktest");
@@ -308,10 +306,11 @@ cvtestthread(void *junk, unsigned long num)
 
 			/* Require at least 2000 cpu cycles (we're 25mhz) */
 			if (ts2.tv_sec == 0 && ts2.tv_nsec < 40*2000) {
-				kprintf("cv_wait took only %u ns\n",
-					ts2.tv_nsec);
-				kprintf("That's too fast... you must be "
-					"busy-looping\n");
+				tkprintf("cv_wait took only %u ns\n", ts2.tv_nsec);
+				tkprintf("That's too fast... you must be busy-looping\n");
+				spinlock_acquire(&status_lock);
+				test_status = FAIL;
+				spinlock_release(&staus_lock);
 				V(donesem);
 				thread_exit();
 			}
@@ -326,11 +325,20 @@ cvtestthread(void *junk, unsigned long num)
 		 */
 		for (j=0; j<3000; j++);
 
+		random_yielde(4);
 		cv_broadcast(testcv, testlock);
-		thread_yield();
-		kprintf("Thread %lu\n", testval2);
-		testval1 = (testval1 + NTHREADS - 1)%NTHREADS;
+		random_yielder(4);
+
+		spinlock_acquire(&status_lock);
+		if (testval1 != testval2) {
+			    test_status = FAIL;
+		}
+		spinlock_release(&status_lock);
+
+		tkprintf("Thread %lu\n", testval2);
+		testval1 = (testval1 + NTHREADS - 1) % NTHREADS;
 		lock_release(testlock);
+
 	}
 	V(donesem);
 }
@@ -344,23 +352,23 @@ cvtest(int nargs, char **args)
 	(void)args;
 
 	inititems();
-	kprintf("Starting CV test...\n");
-	kprintf("Threads should print out in reverse order.\n");
+	tkprintf("Starting CV test...\n");
+	tkprintf("Threads should print out in reverse order.\n");
 
 	testval1 = NTHREADS-1;
 
 	for (i=0; i<NTHREADS; i++) {
 		result = thread_fork("synchtest", NULL, cvtestthread, NULL, (long unsigned) i);
 		if (result) {
-			panic("cvtest: thread_fork failed: %s\n",
-					strerror(result));
+			panic("cvtest: thread_fork failed: %s\n", strerror(result));
 		}
 	}
 	for (i=0; i<NTHREADS; i++) {
 		P(donesem);
 	}
 
-	kprintf("CV test done\n");
+	tkprintf("CV test done\n");
+	success(tesst_status, "cvtest");
 
 	return 0;
 }
@@ -391,14 +399,22 @@ sleepthread(void *junk1, unsigned long junk2)
 	(void)junk1;
 	(void)junk2;
 
+	random_yielder(4);
+
 	for (j=0; j<NLOOPS; j++) {
 		for (i=0; i<NCVS; i++) {
 			lock_acquire(testlocks[i]);
+			random_yielder(4);
 			V(gatesem);
+			random_yielder(4);
+			spinlock_acquire(&status_lock);
+			testval1++;
+			spinlock_release(&status_lock);
 			cv_wait(testcvs[i], testlocks[i]);
+			random_yielder(4);
 			lock_release(testlocks[i]);
 		}
-		kprintf("sleepthread: %u\n", j);
+		tkprintf("sleepthread: %u\n", j);
 	}
 	V(exitsem);
 }
@@ -412,14 +428,26 @@ wakethread(void *junk1, unsigned long junk2)
 	(void)junk1;
 	(void)junk2;
 
+	random_yielder(4);
+
 	for (j=0; j<NLOOPS; j++) {
 		for (i=0; i<NCVS; i++) {
+			random_yielder(4);
 			P(gatesem);
+			random_yielder(4);
 			lock_acquire(testlocks[i]);
+			random_yielder(4);
+			spinlock_acquire(&status_lock);
+			testval4--;
+			if (testval4 != 0) {
+				    test_status = FAIL;
+			}
+			spinlock_release(&status_lock);
 			cv_signal(testcvs[i], testlocks[i]);
+			random_yielder(4);
 			lock_release(testlocks[i]);
 		}
-		kprintf("wakethread: %u\n", j);
+		tkprintf("wakethread: %u\n", j);
 	}
 	V(exitsem);
 }
@@ -433,6 +461,9 @@ cvtest2(int nargs, char **args)
 	(void)nargs;
 	(void)args;
 
+	inititems();
+	test_status = SUCCESS;
+
 	for (i=0; i<NCVS; i++) {
 		testlocks[i] = lock_create("cvtest2 lock");
 		testcvs[i] = cv_create("cvtest2 cv");
@@ -440,7 +471,7 @@ cvtest2(int nargs, char **args)
 	gatesem = sem_create("gatesem", 0);
 	exitsem = sem_create("exitsem", 0);
 
-	kprintf("cvtest2...\n");
+	tkprintf("cvtest2...\n");
 
 	result = thread_fork("cvtest2", NULL, sleepthread, NULL, 0);
 	if (result) {
@@ -464,6 +495,8 @@ cvtest2(int nargs, char **args)
 		testcvs[i] = NULL;
 	}
 
-	kprintf("cvtest2 done\n");
+	tkprintf("cvtest2 done\n");
+	success(test_status, "cvtest2");
+
 	return 0;
 }
