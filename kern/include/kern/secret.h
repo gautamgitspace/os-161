@@ -45,7 +45,6 @@
  * normal test output.
  */
 
-// #define KERNEL_SECRET ((unsigned long long)1)
-#define KERNEL_SECRET ((unsigned long long)0)
+#define KERNEL_SECRET ""
 
 #endif /* _SECRET_H_ */

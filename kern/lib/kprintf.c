@@ -151,34 +151,13 @@ tkprintf(const char *fmt, ...)
 {
 	int chars;
 	va_list ap;
-	
-	if (KERNET_SECRET != 0) {
+
+	if (strcmp(KERNEL_SECRET, "") != 0) {
 		    return 0;
 	}
 
 	va_start(ap, fmt);
 	chars = vkprint(fmt, ap);
-	va_end(ap);
-
-	return chars;
-}
-
-/*
- * kprintf variant that prints the automated secret
- */
-
-int
-skprintf(const char *fmt, ...)
-{
-	int chars;
-	va_list ap;
-	
-	if (KERNEL_SECRET !=0) {
-		    kprintf("SECRET=%llu ", KENRNEL_SECRET);
-	}
-
-	va_start(ap, fmt);
-	chars = vkprintf(fmt, ap);
 	va_end(ap);
 
 	return chars;
