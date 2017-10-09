@@ -440,6 +440,6 @@ file		test/fstest.c
 optfile net	test/nettest.c
 
 defoption synchprobs
-defoption synchprobs synchprobs/whalemating.c
-defoption synchprobs synchprobs/stoplight.c
-defoption synchprobs test/synchprobs.c
+optfile synchprobs synchprobs/whalemating.c
+optfile synchprobs synchprobs/stoplight.c
+optfile synchprobs test/synchprobs.c
